@@ -8,6 +8,8 @@ from thankyou.types import UploadSessionResponse
 
 
 class FilesResource:
+    """Helpers for preparing files that can be referenced by generation inputs."""
+
     def __init__(self, client: APIClient) -> None:
         self._client = client
 
@@ -19,7 +21,7 @@ class FilesResource:
         filename: str | None = None,
         request_options: RequestOptions | None = None,
     ) -> UploadSessionResponse:
-        """Creates an upload session for a file that will be attached to generations."""
+        """Create an upload session and return the upload URL plus public file URL."""
         response = self._client.request(
             RequestConfig(
                 method="POST",
@@ -42,7 +44,7 @@ class FilesResource:
         content_type: str | None = None,
         request_options: RequestOptions | None = None,
     ) -> UploadSessionResponse:
-        """Uploads file content and returns the hosted file metadata."""
+        """Upload a local path or bytes object and return metadata for later generation inputs."""
         body, resolved_filename, resolved_content_type = read_upload_body(
             file,
             filename=filename,

@@ -4,7 +4,7 @@ from typing import Literal, NotRequired, TypeAlias, TypedDict
 
 JsonPrimitive: TypeAlias = str | int | float | bool | None
 JsonValue: TypeAlias = JsonPrimitive | dict[str, "JsonValue"] | list["JsonValue"]
-GenericGenerationInput: TypeAlias = dict[str, JsonValue]
+JsonObject: TypeAlias = dict[str, JsonValue]
 
 AspectRatio: TypeAlias = Literal["1:1", "16:9", "9:16", "4:3", "3:4", "21:9", "9:21"]
 
@@ -53,4 +53,3 @@ class TextToSpeechInput(TypedDict, total=False):
     voice: str
     speed: int | float
     format: Literal["mp3", "wav", "m4a", "ogg"]
-

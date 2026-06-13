@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import time
-from collections.abc import Mapping
 from urllib.parse import quote
 
 from thankyou._client import APIClient, RequestConfig, RequestOptions
@@ -12,7 +11,7 @@ from thankyou._utils import (
     create_idempotency_key,
     sleep,
 )
-from thankyou.resources.generations.inputs import GenericGenerationInput
+from thankyou.resources.generations.inputs import JsonObject
 from thankyou.resources.generations.outputs import GenericGenerationOutput
 from thankyou.resources.generations.responses import (
     parse_generation_list_response,
@@ -38,20 +37,22 @@ DEFAULT_TERMINAL_STATUSES: set[GenerationStatus] = {
 
 
 class GenerationsResource:
+    """Create, inspect, and manage generation jobs."""
+
     def __init__(self, client: APIClient) -> None:
         self._client = client
 
     def create(
         self,
         *,
-        model: str | None = None,
-        input: Mapping[str, object] | None = None,
-        webhook: Mapping[str, object] | None = None,
+        model = None,
+        input=None,
+        webhook = None,
         quote_id: str | None = None,
         idempotency_key: str | None = None,
         request_options: RequestOptions | None = None,
-    ) -> GenerationResponse[str, GenericGenerationOutput, GenericGenerationInput]:
-        """Creates a generation, or executes a previously approved quote."""
+    ) -> GenerationResponse[str, GenericGenerationOutput, JsonObject]:
+        """Create a generation, or execute a previously approved quote."""
         resolved_idempotency_key = idempotency_key
         if resolved_idempotency_key is None and request_options is not None:
             resolved_idempotency_key = request_options.idempotency_key
@@ -87,16 +88,16 @@ class GenerationsResource:
         self,
         *,
         model: str | None = None,
-        input: Mapping[str, object] | None = None,
-        webhook: Mapping[str, object] | None = None,
+        input=None,
+        webhook: JsonObject | None = None,
         quote_id: str | None = None,
         idempotency_key: str | None = None,
         interval: float = DEFAULT_WAIT_INTERVAL_SECONDS,
         timeout: float = DEFAULT_WAIT_TIMEOUT_SECONDS,
         terminal_statuses: set[GenerationStatus] | None = None,
         create_options: RequestOptions | None = None,
-    ) -> GenerationResponse[str, GenericGenerationOutput, GenericGenerationInput]:
-        """Creates a generation and waits until it reaches a terminal status."""
+    ) -> GenerationResponse[str, GenericGenerationOutput, JsonObject]:
+        """Create a generation and wait for the final result."""
         created = self.create(
             model=model,
             input=input,
@@ -117,8 +118,8 @@ class GenerationsResource:
         generation_id: str,
         *,
         request_options: RequestOptions | None = None,
-    ) -> GenerationResponse[str, GenericGenerationOutput, GenericGenerationInput]:
-        """Retrieves the latest generation record by ID."""
+    ) -> GenerationResponse[str, GenericGenerationOutput, JsonObject]:
+        """Retrieve the latest generation record by ID."""
         response = self._client.request(
             RequestConfig(
                 method="GET",
@@ -134,7 +135,7 @@ class GenerationsResource:
         *,
         request_options: RequestOptions | None = None,
     ) -> GenerationStatusResponse:
-        """Retrieves only the current status for a generation."""
+        """Retrieve lightweight status and progress for a generation."""
         response = self._client.request(
             RequestConfig(
                 method="GET",
@@ -152,8 +153,8 @@ class GenerationsResource:
         timeout: float = DEFAULT_WAIT_TIMEOUT_SECONDS,
         terminal_statuses: set[GenerationStatus] | None = None,
         request_options: RequestOptions | None = None,
-    ) -> GenerationResponse[str, GenericGenerationOutput, GenericGenerationInput]:
-        """Polls a generation until it reaches a terminal status, then returns the full record."""
+    ) -> GenerationResponse[str, GenericGenerationOutput, JsonObject]:
+        """Poll until the generation reaches a terminal status, then return its full record."""
         statuses = terminal_statuses or DEFAULT_TERMINAL_STATUSES
         started_at = time.monotonic()
         while True:
@@ -171,10 +172,10 @@ class GenerationsResource:
         self,
         *,
         model: str,
-        input: Mapping[str, object],
+        input,
         request_options: RequestOptions | None = None,
-    ) -> QuoteResponse[str, GenericGenerationInput]:
-        """Estimates cost and eligibility before creating a generation."""
+    ) -> QuoteResponse[str, JsonObject]:
+        """Estimate cost and blocking reasons before creating a generation."""
         response = self._client.request(
             RequestConfig(
                 method="POST",
@@ -194,8 +195,8 @@ class GenerationsResource:
         model: str | None = None,
         model_prefix: str | None = None,
         request_options: RequestOptions | None = None,
-    ) -> GenerationListResponse[str, GenericGenerationOutput, GenericGenerationInput]:
-        """Lists generations visible to the current API key."""
+    ) -> GenerationListResponse[str, GenericGenerationOutput, JsonObject]:
+        """List generations visible to the current API key, optionally filtered."""
         response = self._client.request(
             RequestConfig(
                 method="GET",
@@ -217,8 +218,8 @@ class GenerationsResource:
         generation_id: str,
         *,
         request_options: RequestOptions | None = None,
-    ) -> GenerationResponse[str, GenericGenerationOutput, GenericGenerationInput]:
-        """Requests cancellation for a generation."""
+    ) -> GenerationResponse[str, GenericGenerationOutput, JsonObject]:
+        """Request cancellation for a generation and return the updated record."""
         response = self._client.request(
             RequestConfig(
                 method="POST",
@@ -233,8 +234,8 @@ class GenerationsResource:
         generation_id: str,
         *,
         request_options: RequestOptions | None = None,
-    ) -> GenerationResponse[str, GenericGenerationOutput, GenericGenerationInput]:
-        """Retries a failed or retryable generation."""
+    ) -> GenerationResponse[str, GenericGenerationOutput, JsonObject]:
+        """Retry a failed or retryable generation and return the new record."""
         response = self._client.request(
             RequestConfig(
                 method="POST",

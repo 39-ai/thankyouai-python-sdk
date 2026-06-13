@@ -69,7 +69,7 @@ def text_response(body: str, status: int = 200) -> TransportResponse:
 GENERATION = {
     "id": "gen_123",
     "status": "queued",
-    "model": "flux-2:pro/text-to-image",
+    "model": "flux/v2/pro/text-to-image",
     "output": [],
     "usage": {"credits_consumed": 0, "currency": "points"},
     "progress": 0,
@@ -102,7 +102,7 @@ def test_sends_auth_headers_workspace_id_default_headers_base_url_and_create_bod
     )
 
     created = thankyou.generations.create(
-        model="flux-2:pro/text-to-image",
+        model="flux/v2/pro/text-to-image",
         input={"prompt": "A mountain landscape"},
         idempotency_key="idem_1",
     )
@@ -115,7 +115,7 @@ def test_sends_auth_headers_workspace_id_default_headers_base_url_and_create_bod
     assert call.headers["x-custom"] == "yes"
     assert call.headers["Idempotency-Key"] == "idem_1"
     assert json.loads(call.body or b"{}") == {
-        "model": "flux-2:pro/text-to-image",
+        "model": "flux/v2/pro/text-to-image",
         "input": {"prompt": "A mountain landscape"},
         "idempotency_key": "idem_1",
     }
@@ -156,7 +156,7 @@ def test_auto_generates_idempotency_keys_for_create() -> None:
     thankyou = ThankYou(api_key="tk_test", transport=transport)
 
     thankyou.generations.create(
-        model="flux-2:pro/text-to-image",
+        model="flux/v2/pro/text-to-image",
         input={"prompt": "A mountain landscape"},
     )
 
@@ -209,7 +209,7 @@ def test_wait_polls_status_until_terminal_and_retrieves_full_generation(
 
     result = thankyou.generations.wait("gen_123", interval=0.01, timeout=1)
 
-    assert result.output[0]["url"] == "https://static.example/1.jpg"
+    assert result.output[0].get("url") == "https://static.example/1.jpg"
     assert result.started_at == datetime.fromisoformat("2026-06-13T00:00:30+00:00")
     assert result.finished_at == datetime.fromisoformat("2026-06-13T00:01:00+00:00")
     assert len(transport.calls) == 3
@@ -236,14 +236,14 @@ def test_top_level_run_creates_and_waits_for_final_result(monkeypatch: pytest.Mo
     thankyou = ThankYou(api_key="tk_test", transport=transport)
 
     result = thankyou.run(
-        model="flux-2:pro/text-to-image",
+        model="flux/v2/pro/text-to-image",
         input={"prompt": "A mountain landscape"},
         interval=0.01,
         timeout=1,
         create_options=RequestOptions(headers={"x-create": "yes"}),
     )
 
-    assert result.output[0]["url"] == "https://static.example/final.jpg"
+    assert result.output[0].get("url") == "https://static.example/final.jpg"
     assert result.finished_at == datetime.fromisoformat("2026-06-13T00:01:00+00:00")
     assert [(call.request.method, call.request.url) for call in transport.calls] == [
         ("POST", "https://api.thankyouai.com/open/v1/generate"),
@@ -252,6 +252,17 @@ def test_top_level_run_creates_and_waits_for_final_result(monkeypatch: pytest.Mo
         ("GET", "https://api.thankyouai.com/open/v1/generations/gen_123"),
     ]
     assert transport.calls[0].request.headers["x-create"] == "yes"
+
+
+def test_top_level_run_rejects_unknown_keyword_arguments() -> None:
+    thankyou = ThankYou(api_key="tk_test", transport=MockTransport([]))
+
+    with pytest.raises(TypeError, match="unexpected keyword argument"):
+        thankyou.run(  # type: ignore[call-arg]  # pyright: ignore[reportCallIssue]
+            model="flux/v2/pro/text-to-image",
+            input={},
+            unexpected=True,
+        )
 
 
 def test_parses_dates_in_listed_generations() -> None:

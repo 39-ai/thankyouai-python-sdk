@@ -12,6 +12,8 @@ from thankyou.types import ThankYouWebhookEvent
 
 
 class WebhooksResource:
+    """Verify incoming webhook events before reading their payloads."""
+
     def verify(
         self,
         *,
@@ -21,7 +23,7 @@ class WebhooksResource:
         secret: str,
         tolerance_seconds: int = DEFAULT_WEBHOOK_TOLERANCE_SECONDS,
     ) -> ThankYouWebhookEvent:
-        """Verifies a webhook signature and parses the event payload."""
+        """Verify a webhook signature and parse the event payload."""
         normalized_timestamp = _normalize_timestamp(timestamp)
         now_seconds = int(time.time())
         if abs(now_seconds - normalized_timestamp) > tolerance_seconds:
@@ -57,7 +59,7 @@ def compute_signature(
     timestamp: str | int,
     raw_body: str | bytes | bytearray | memoryview,
 ) -> str:
-    """Helper for tests and custom webhook integrations."""
+    """Compute the expected `sha256=<hex>` webhook signature."""
     normalized_timestamp = _normalize_timestamp(timestamp)
     body_text = _normalize_raw_body(raw_body)
     digest = hmac.new(

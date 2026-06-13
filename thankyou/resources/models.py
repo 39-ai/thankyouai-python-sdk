@@ -4,7 +4,7 @@ from typing import TypeVar, cast
 
 from thankyou._client import APIClient, RequestConfig, RequestOptions
 from thankyou._utils import as_dict
-from thankyou.resources.generations.inputs import GenericGenerationInput
+from thankyou.resources.generations.inputs import JsonObject
 from thankyou.types import (
     ModelDetail,
     ModelListResponse,
@@ -17,11 +17,13 @@ ModelT = TypeVar("ModelT", bound=str)
 
 
 class ModelsResource:
+    """Discover supported generation models and their input metadata."""
+
     def __init__(self, client: APIClient) -> None:
         self._client = client
 
     def list(self, *, request_options: RequestOptions | None = None) -> ModelListResponse[str]:
-        """Lists available generation models."""
+        """List available generation models."""
         response = self._client.request(
             RequestConfig(method="GET", path="/models", auth=False, options=request_options)
         )
@@ -35,8 +37,8 @@ class ModelsResource:
         model_id: ModelT,
         *,
         request_options: RequestOptions | None = None,
-    ) -> ModelDetail[ModelT, GenericGenerationInput]:
-        """Retrieves metadata and input schema for a model."""
+    ) -> ModelDetail[ModelT, JsonObject]:
+        """Retrieve metadata, defaults, pricing, and input schema for a model."""
         response = self._client.request(
             RequestConfig(
                 method="GET",
@@ -89,7 +91,7 @@ def _parse_model_summary(value: object) -> ModelSummary[str]:
     )
 
 
-def _parse_model_detail(value: object) -> ModelDetail[ModelT, GenericGenerationInput]:
+def _parse_model_detail(value: object) -> ModelDetail[ModelT, JsonObject]:
     data = as_dict(value)
     summary = _parse_model_summary(data)
     return ModelDetail(
@@ -107,7 +109,7 @@ def _parse_model_detail(value: object) -> ModelDetail[ModelT, GenericGenerationI
         preview_image=summary.preview_image,
         pricing=summary.pricing,
         default_mode=str(data.get("default_mode", "")),
-        default_params=cast(GenericGenerationInput, data.get("default_params", {})),
+        default_params=cast(JsonObject, data.get("default_params", {})),
         input_schema=cast(dict[str, object], data.get("input_schema", {})),
         primary_fields=cast(list[dict[str, object]], data.get("primary_fields", [])),
         advanced_fields=cast(list[dict[str, object]], data.get("advanced_fields", [])),

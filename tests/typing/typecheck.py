@@ -41,8 +41,15 @@ quote = client.generations.quote(
 assert_type(quote.expires_at, datetime)
 assert_type(quote.resolved_params, WanV26TextToVideoInput)
 
-unknown_response = client.generations.create(
-    model="provider/custom-model",
-    input={"any_json_field": True},
-)
-assert_type(unknown_response.model, str)
+client.generations.create(
+    model="google/nano-banana/text-to-image",
+    input={"prompt": 123},  # pyright: ignore[reportArgumentType]
+)  # type: ignore[call-overload]
+client.run(
+    model="google/nano-banana/text-to-image",
+    input={"prompt": 123},  # pyright: ignore[reportArgumentType]
+)  # type: ignore[call-overload]
+client.generations.quote(
+    model="wan/v2.6/text-to-video",
+    input={"prompt": 123},  # pyright: ignore[reportArgumentType]
+)  # type: ignore[call-overload]

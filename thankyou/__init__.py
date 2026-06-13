@@ -1,6 +1,10 @@
 from __future__ import annotations
 
+from collections.abc import Callable
+from typing import cast
+
 from thankyou._client import RequestOptions
+from thankyou._utils import DEFAULT_WAIT_INTERVAL_SECONDS, DEFAULT_WAIT_TIMEOUT_SECONDS
 from thankyou.errors import (
     ThankYouAPIError,
     ThankYouAuthenticationError,
@@ -14,9 +18,9 @@ from thankyou.resources.generations import GenerationsResource
 from thankyou.resources.generations.generated import BUILT_IN_MODEL_IDS, BUILT_IN_TASK_IDS
 from thankyou.resources.generations.inputs import (
     AspectRatio,
-    GenericGenerationInput,
     ImageToImageInput,
     ImageToVideoInput,
+    JsonObject,
     JsonPrimitive,
     JsonValue,
     ReferenceAsset,
@@ -84,10 +88,33 @@ class ThankYou:
 
     def run(
         self,
-        **kwargs: object,
-    ) -> GenerationResponse[str, GenericGenerationOutput, GenericGenerationInput]:
+        *,
+        model: str | None = None,
+        input: object | None = None,
+        webhook: JsonObject | None = None,
+        quote_id: str | None = None,
+        idempotency_key: str | None = None,
+        interval: float = DEFAULT_WAIT_INTERVAL_SECONDS,
+        timeout: float = DEFAULT_WAIT_TIMEOUT_SECONDS,
+        terminal_statuses: set[GenerationStatus] | None = None,
+        create_options: RequestOptions | None = None,
+    ) -> GenerationResponse[str, GenericGenerationOutput, JsonObject]:
         """Shortcut for `thankyou.generations.run(...)`."""
-        return self.generations.run(**kwargs)
+        run = cast(
+            Callable[..., GenerationResponse[str, GenericGenerationOutput, JsonObject]],
+            self.generations.run,
+        )
+        return run(
+            model=model,
+            input=input,
+            webhook=webhook,
+            quote_id=quote_id,
+            idempotency_key=idempotency_key,
+            interval=interval,
+            timeout=timeout,
+            terminal_statuses=terminal_statuses,
+            create_options=create_options,
+        )
 
 
 __all__ = [
@@ -102,12 +129,12 @@ __all__ = [
     "GenerationResponse",
     "GenerationStatus",
     "GenerationStatusResponse",
-    "GenericGenerationInput",
     "GenericGenerationOutput",
     "ImageGenerationOutput",
     "ImageToImageInput",
     "ImageToVideoInput",
     "JsonPrimitive",
+    "JsonObject",
     "JsonValue",
     "ModelDetail",
     "ModelListResponse",
