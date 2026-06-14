@@ -1,8 +1,9 @@
 from __future__ import annotations
 
+import asyncio
 import json
 import os
-from collections.abc import Callable, Mapping
+from collections.abc import Awaitable, Callable, Mapping
 from dataclasses import dataclass
 from urllib.error import HTTPError, URLError
 from urllib.request import Request as URLRequest
@@ -58,6 +59,7 @@ class TransportResponse:
 
 
 Transport = Callable[[TransportRequest], TransportResponse]
+AsyncTransport = Callable[[TransportRequest], Awaitable[TransportResponse]]
 
 
 class APIClient:
@@ -171,6 +173,117 @@ class APIClient:
         return api_key
 
 
+class AsyncAPIClient:
+    def __init__(
+        self,
+        *,
+        api_key: str | None = None,
+        base_url: str = DEFAULT_BASE_URL,
+        workspace_id: str | None = None,
+        timeout: float = DEFAULT_TIMEOUT_SECONDS,
+        max_retries: int = DEFAULT_MAX_RETRIES,
+        transport: AsyncTransport | None = None,
+        default_headers: Mapping[str, str] | None = None,
+    ) -> None:
+        self._api_key = api_key
+        self._base_url = normalize_base_url(base_url)
+        self._workspace_id = workspace_id
+        self._timeout = timeout
+        self._max_retries = max_retries
+        self._transport = transport or default_async_transport
+        self._default_headers = default_headers
+
+    async def request(self, config: RequestConfig) -> object:
+        options = config.options or RequestOptions()
+        max_retries = options.max_retries if options.max_retries is not None else self._max_retries
+        method = config.method.upper()
+        idempotency_key = options.idempotency_key or (
+            create_idempotency_key() if config.idempotent and method == "POST" else None
+        )
+        auth_api_key = self._resolve_api_key() if config.auth else None
+
+        attempt = 0
+        while True:
+            try:
+                return await self._send(config, method, idempotency_key, auth_api_key)
+            except Exception as error:
+                if attempt >= max_retries or not _should_retry(error):
+                    raise
+                attempt += 1
+                await asyncio.sleep(_retry_delay(attempt))
+
+    async def put_upload(
+        self,
+        url: str,
+        body: bytes,
+        content_type: str,
+        *,
+        options: RequestOptions | None = None,
+    ) -> None:
+        request_options = options or RequestOptions()
+        timeout = request_options.timeout if request_options.timeout is not None else self._timeout
+        headers = merge_headers({"Content-Type": content_type}, request_options.headers)
+        response = await self._transport(
+            TransportRequest(method="PUT", url=url, headers=headers, body=body, timeout=timeout)
+        )
+        if response.status < 200 or response.status >= 300:
+            payload = parse_json_body(response.body, response.headers.get("content-type", ""))
+            raise build_api_error(
+                response.status,
+                response.headers,
+                payload,
+                f"File upload failed with status {response.status}",
+            )
+
+    async def _send(
+        self,
+        config: RequestConfig,
+        method: str,
+        idempotency_key: str | None,
+        auth_api_key: str | None,
+    ) -> object:
+        options = config.options or RequestOptions()
+        timeout = options.timeout if options.timeout is not None else self._timeout
+        url = f"{self._base_url}{config.path}{build_query(config.query or {})}"
+        headers = merge_headers(self._default_headers, options.headers)
+        if config.auth:
+            headers["Authorization"] = f"Bearer {auth_api_key}"
+        if self._workspace_id and "x-workspace-id" not in {key.lower() for key in headers}:
+            headers["x-workspace-id"] = self._workspace_id
+        if idempotency_key:
+            headers["Idempotency-Key"] = idempotency_key
+
+        body_bytes: bytes | None = None
+        if config.body is not None:
+            headers.setdefault("Content-Type", "application/json")
+            body_bytes = json.dumps(config.body, separators=(",", ":")).encode("utf-8")
+
+        response = await self._transport(
+            TransportRequest(
+                method=method,
+                url=url,
+                headers=headers,
+                body=body_bytes,
+                timeout=timeout,
+            )
+        )
+        payload = parse_json_body(response.body, response.headers.get("content-type", ""))
+        if response.status < 200 or response.status >= 300:
+            raise build_api_error(
+                response.status,
+                response.headers,
+                payload,
+                f"ThankYou API request failed with status {response.status}",
+            )
+        return payload
+
+    def _resolve_api_key(self) -> str:
+        api_key = self._api_key or os.environ.get("THANKYOU_API_KEY")
+        if not api_key:
+            raise TypeError("api_key is required. Pass api_key or set THANKYOU_API_KEY.")
+        return api_key
+
+
 def default_transport(request: TransportRequest) -> TransportResponse:
     urllib_request = URLRequest(
         request.url,
@@ -203,6 +316,10 @@ def default_transport(request: TransportRequest) -> TransportResponse:
                 timeout=request.timeout,
             ) from error
         raise
+
+
+async def default_async_transport(request: TransportRequest) -> TransportResponse:
+    return await asyncio.to_thread(default_transport, request)
 
 
 def _should_retry(error: Exception) -> bool:

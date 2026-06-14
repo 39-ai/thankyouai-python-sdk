@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import TypeVar, cast
 
-from thankyou._client import APIClient, RequestConfig, RequestOptions
+from thankyou._client import APIClient, AsyncAPIClient, RequestConfig, RequestOptions
 from thankyou._utils import as_dict
 from thankyou.resources.generations.inputs import JsonObject
 from thankyou.types import (
@@ -40,6 +40,45 @@ class ModelsResource:
     ) -> ModelDetail[ModelT, JsonObject]:
         """Retrieve metadata, defaults, pricing, and input schema for a model."""
         response = self._client.request(
+            RequestConfig(
+                method="GET",
+                path="/models/detail",
+                auth=False,
+                query={"model_id": model_id},
+                options=request_options,
+            )
+        )
+        return _parse_model_detail(response)
+
+
+class AsyncModelsResource:
+    """Async model discovery helpers."""
+
+    def __init__(self, client: AsyncAPIClient) -> None:
+        self._client = client
+
+    async def list(
+        self,
+        *,
+        request_options: RequestOptions | None = None,
+    ) -> ModelListResponse[str]:
+        """List available generation models."""
+        response = await self._client.request(
+            RequestConfig(method="GET", path="/models", auth=False, options=request_options)
+        )
+        data = as_dict(response)
+        return ModelListResponse(
+            models=[_parse_model_summary(item) for item in data.get("models", [])]
+        )
+
+    async def detail(
+        self,
+        model_id: ModelT,
+        *,
+        request_options: RequestOptions | None = None,
+    ) -> ModelDetail[ModelT, JsonObject]:
+        """Retrieve metadata, defaults, pricing, and input schema for a model."""
+        response = await self._client.request(
             RequestConfig(
                 method="GET",
                 path="/models/detail",

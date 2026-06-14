@@ -10,8 +10,8 @@ from thankyou.errors import (
     ThankYouValidationError,
     ThankYouWebhookVerificationError,
 )
-from thankyou.resources.files import FilesResource
-from thankyou.resources.generations import GenerationsResource
+from thankyou.resources.files import AsyncFilesResource, FilesResource
+from thankyou.resources.generations import AsyncGenerationsResource, GenerationsResource
 from thankyou.resources.generations.inputs import (
     CreateGenerationRequest,
     GenerationInput,
@@ -23,7 +23,7 @@ from thankyou.resources.generations.inputs import (
     WebhookConfig,
 )
 from thankyou.resources.generations.outputs import GenerationOutput
-from thankyou.resources.models import ModelsResource
+from thankyou.resources.models import AsyncModelsResource, ModelsResource
 from thankyou.resources.webhooks import WebhooksResource, compute_signature
 from thankyou.types import (
     GenerationErrorBody,
@@ -45,7 +45,8 @@ from thankyou.types import (
 )
 
 from ._client import APIClient as _APIClient
-from ._client import Transport
+from ._client import AsyncAPIClient as _AsyncAPIClient
+from ._client import AsyncTransport, Transport
 
 
 class ThankYou:
@@ -101,7 +102,65 @@ class ThankYou:
         )
 
 
+class AsyncThankYou:
+    def __init__(
+        self,
+        *,
+        api_key: str | None = None,
+        base_url: str = "https://api.thankyouai.com/open/v1",
+        workspace_id: str | None = None,
+        timeout: float = 60.0,
+        max_retries: int = 2,
+        transport: AsyncTransport | None = None,
+        default_headers: dict[str, str] | None = None,
+    ) -> None:
+        client = _AsyncAPIClient(
+            api_key=api_key,
+            base_url=base_url,
+            workspace_id=workspace_id,
+            timeout=timeout,
+            max_retries=max_retries,
+            transport=transport,
+            default_headers=default_headers,
+        )
+        self.generations = AsyncGenerationsResource(client)
+        self.models = AsyncModelsResource(client)
+        self.files = AsyncFilesResource(client)
+        self.webhooks = WebhooksResource()
+
+    async def run(
+        self,
+        *,
+        model: str | None = None,
+        input: GenerationInput | dict[str, JsonValue] | None = None,
+        webhook: WebhookConfig | JsonObject | None = None,
+        quote_id: str | None = None,
+        idempotency_key: str | None = None,
+        interval: float = DEFAULT_WAIT_INTERVAL_SECONDS,
+        timeout: float = DEFAULT_WAIT_TIMEOUT_SECONDS,
+        terminal_statuses: set[GenerationStatus] | None = None,
+        create_options: RequestOptions | None = None,
+    ) -> GenerationResponse[str, GenerationOutput, JsonObject]:
+        """Shortcut for `await thankyou.generations.run(...)`."""
+        return await self.generations.run(
+            model=model,
+            input=input,
+            webhook=webhook,
+            quote_id=quote_id,
+            idempotency_key=idempotency_key,
+            interval=interval,
+            timeout=timeout,
+            terminal_statuses=terminal_statuses,
+            create_options=create_options,
+        )
+
+
 __all__ = [
+    "AsyncFilesResource",
+    "AsyncGenerationsResource",
+    "AsyncModelsResource",
+    "AsyncThankYou",
+    "AsyncTransport",
     "CreateGenerationRequest",
     "GenerationErrorBody",
     "GenerationErrorDetails",

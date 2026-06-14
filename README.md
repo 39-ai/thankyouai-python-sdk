@@ -9,17 +9,18 @@ pip install thankyouai
 ## Create a Client
 
 ```python
-from thankyou import ThankYou
+from thankyou import AsyncThankYou
 
-thankyou = ThankYou(api_key="tk_...")
+thankyou = AsyncThankYou(api_key="tk_...")
 ```
 
 The default base URL is `https://api.thankyouai.com/open/v1`.
+Use `ThankYou` instead of `AsyncThankYou` if you need the synchronous client.
 
 ## Text to Image
 
 ```python
-result = thankyou.run(
+result = await thankyou.run(
     model="flux/v2/pro/text-to-image",
     input={
         "prompt": "A mountain landscape at golden hour",
@@ -33,9 +34,9 @@ print(result.output[0]["url"])
 ## Image to Video with an Uploaded File
 
 ```python
-file = thankyou.files.upload(file="./photo.jpg")
+file = await thankyou.files.upload(file="./photo.jpg")
 
-generation = thankyou.generations.create(
+generation = await thankyou.generations.create(
     model="wan/v2.6/image-to-video",
     input={
         "prompt": "Gentle camera movement with soft evening light",
@@ -43,7 +44,7 @@ generation = thankyou.generations.create(
     },
 )
 
-result = thankyou.generations.wait(
+result = await thankyou.generations.wait(
     generation.id,
     interval=3.0,
     timeout=10 * 60,
@@ -55,7 +56,7 @@ result = thankyou.generations.wait(
 Use a quote when you want to estimate the cost and check whether a request can run before starting the generation. A quote returns the resolved input, estimated cost, blocking reasons, and an expiration time.
 
 ```python
-quote = thankyou.generations.quote(
+quote = await thankyou.generations.quote(
     model="wan/v2.6/text-to-video",
     input={"prompt": "A koi fish swimming", "duration": 5},
 )
@@ -65,14 +66,14 @@ if quote.blocking_reasons:
 
 print(quote.estimated_cost, quote.currency, quote.expires_at)
 
-generation = thankyou.generations.create(quote_id=quote.quote_id)
+generation = await thankyou.generations.create(quote_id=quote.quote_id)
 ```
 
 ## Models
 
 ```python
-models = thankyou.models.list()
-detail = thankyou.models.detail("wan/v2.6/text-to-video")
+models = await thankyou.models.list()
+detail = await thankyou.models.detail("wan/v2.6/text-to-video")
 
 print(len(models.models))
 print(detail.input_schema)
@@ -107,7 +108,7 @@ from thankyou import (
 )
 
 try:
-    thankyou.generations.create(
+    await thankyou.generations.create(
         model="wan/v2.6/text-to-video",
         input={"prompt": "test"},
     )
@@ -133,23 +134,23 @@ The SDK keeps generation request and response types close to the public API cont
 This keeps newly released model fields and model-specific output fields usable without waiting for an SDK release.
 
 ```python
-from thankyou import GenerationInput, GenerationOutput, JsonObject, ThankYou
+from thankyou import AsyncThankYou, GenerationInput, GenerationOutput, JsonObject
 
-client = ThankYou(api_key="tk_test")
+client = AsyncThankYou(api_key="tk_test")
 
 common_input: GenerationInput = {
     "prompt": "A mountain landscape at golden hour",
     "aspect_ratio": "16:9",
 }
 
-generation = client.generations.create(
+generation = await client.generations.create(
     model="google/nano-banana/text-to-image",
     input=common_input,
 )
 output: GenerationOutput = generation.output[0]
 print(output.get("url"))
 
-detail = client.models.detail("wan/v2.6/text-to-video")
+detail = await client.models.detail("wan/v2.6/text-to-video")
 print(detail.input_schema)
 
 model_specific_input: JsonObject = {
@@ -159,7 +160,7 @@ model_specific_input: JsonObject = {
     "camera_fixed": False,
 }
 
-quote = client.generations.quote(
+quote = await client.generations.quote(
     model="wan/v2.6/text-to-video",
     input=model_specific_input,
 )

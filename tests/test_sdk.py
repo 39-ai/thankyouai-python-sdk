@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import json
 import time
 from collections.abc import Callable
@@ -10,6 +11,7 @@ from pathlib import Path
 import pytest
 
 from thankyou import (
+    AsyncThankYou,
     GenerationInput,
     RequestOptions,
     ThankYou,
@@ -47,6 +49,23 @@ class MockTransport:
         if callable(response):
             return response(request)
         return response
+
+
+class AsyncMockTransport:
+    def __init__(
+        self,
+        responses: list[
+            TransportResponse | Exception | Callable[[TransportRequest], TransportResponse]
+        ],
+    ) -> None:
+        self._sync = MockTransport(responses)
+
+    @property
+    def calls(self) -> list[RecordedCall]:
+        return self._sync.calls
+
+    async def __call__(self, request: TransportRequest) -> TransportResponse:
+        return self._sync(request)
 
 
 def json_response(
@@ -258,6 +277,54 @@ def test_top_level_run_creates_and_waits_for_final_result(monkeypatch: pytest.Mo
     assert transport.calls[0].request.headers["x-create"] == "yes"
 
 
+def test_async_top_level_run_creates_and_waits_for_final_result(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    async def no_sleep(_: float) -> None:
+        return None
+
+    monkeypatch.setattr(asyncio, "sleep", no_sleep)
+    transport = AsyncMockTransport([
+        json_response(GENERATION, 202),
+        json_response({"id": "gen_123", "status": "queued", "progress": 0, "finished_at": None}),
+        json_response({
+            "id": "gen_123",
+            "status": "succeeded",
+            "progress": 1,
+            "finished_at": "2026-06-13T00:01:00Z",
+        }),
+        json_response({
+            **GENERATION,
+            "status": "succeeded",
+            "finished_at": "2026-06-13T00:01:00Z",
+            "output": [{"url": "https://static.example/final.jpg", "mime_type": "image/jpeg"}],
+        }),
+    ])
+    thankyou = AsyncThankYou(api_key="tk_test", transport=transport)
+
+    async def run() -> None:
+        result = await thankyou.run(
+            model="flux/v2/pro/text-to-image",
+            input={"prompt": "A mountain landscape"},
+            interval=0.01,
+            timeout=1,
+            create_options=RequestOptions(headers={"x-create": "yes"}),
+        )
+
+        assert result.output[0].get("url") == "https://static.example/final.jpg"
+        assert result.finished_at == datetime.fromisoformat("2026-06-13T00:01:00+00:00")
+
+    asyncio.run(run())
+
+    assert [(call.request.method, call.request.url) for call in transport.calls] == [
+        ("POST", "https://api.thankyouai.com/open/v1/generate"),
+        ("GET", "https://api.thankyouai.com/open/v1/generations/gen_123/status"),
+        ("GET", "https://api.thankyouai.com/open/v1/generations/gen_123/status"),
+        ("GET", "https://api.thankyouai.com/open/v1/generations/gen_123"),
+    ]
+    assert transport.calls[0].request.headers["x-create"] == "yes"
+
+
 def test_top_level_run_rejects_unknown_keyword_arguments() -> None:
     thankyou = ThankYou(api_key="tk_test", transport=MockTransport([]))
 
@@ -329,6 +396,45 @@ def test_lists_models_and_gets_detail_without_auth() -> None:
     assert detail.id == "wan/v2.6/text-to-video"
 
 
+def test_async_lists_models_and_gets_detail_without_auth() -> None:
+    transport = AsyncMockTransport([
+        json_response({"models": []}),
+        json_response({
+            "id": "wan/v2.6/text-to-video",
+            "display_name": "WAN 2.6",
+            "description": "",
+            "operation": "text-to-video",
+            "category": "video-generation",
+            "supported_modes": [],
+            "providers": [],
+            "vendor": "wan",
+            "audio_support": "off",
+            "badges": [],
+            "features": [],
+            "preview_image": "",
+            "default_mode": "",
+            "default_params": {},
+            "input_schema": {},
+            "primary_fields": [],
+            "advanced_fields": [],
+            "resolution_map": {},
+        }),
+    ])
+    thankyou = AsyncThankYou(api_key="tk_test", transport=transport)
+
+    async def run() -> None:
+        await thankyou.models.list()
+        detail = await thankyou.models.detail("wan/v2.6/text-to-video")
+        assert detail.id == "wan/v2.6/text-to-video"
+
+    asyncio.run(run())
+
+    assert transport.calls[0].request.url == "https://api.thankyouai.com/open/v1/models"
+    assert "Authorization" not in transport.calls[0].request.headers
+    assert transport.calls[1].request.url == "https://api.thankyouai.com/open/v1/models/detail?model_id=wan%2Fv2.6%2Ftext-to-video"
+    assert "Authorization" not in transport.calls[1].request.headers
+
+
 def test_creates_upload_session_and_puts_bytes_without_authorization() -> None:
     transport = MockTransport([
         json_response({
@@ -347,6 +453,38 @@ def test_creates_upload_session_and_puts_bytes_without_authorization() -> None:
     uploaded = thankyou.files.upload(file=bytes([1, 2, 3, 4]), filename="photo.jpg")
 
     assert uploaded.file_id == "file_1"
+    assert transport.calls[0].request.url == "https://api.thankyouai.com/open/v1/files"
+    assert json.loads(transport.calls[0].request.body or b"{}") == {
+        "content_type": "image/jpeg",
+        "filename": "photo.jpg",
+        "size_bytes": 4,
+    }
+    assert transport.calls[1].request.url == "https://uploads.example/put"
+    assert transport.calls[1].request.headers["Content-Type"] == "image/jpeg"
+    assert "Authorization" not in transport.calls[1].request.headers
+
+
+def test_async_creates_upload_session_and_puts_bytes_without_authorization() -> None:
+    transport = AsyncMockTransport([
+        json_response({
+            "upload_url": "https://uploads.example/put",
+            "upload_url_expires_at": "2026-06-13T00:15:00Z",
+            "file_id": "file_1",
+            "url": "https://static.example/file.jpg",
+            "content_type": "image/jpeg",
+            "size_bytes": 4,
+            "url_expires_at": "2026-06-14T00:00:00Z",
+        }, 201),
+        text_response("", 200),
+    ])
+    thankyou = AsyncThankYou(api_key="tk_test", transport=transport)
+
+    async def run() -> None:
+        uploaded = await thankyou.files.upload(file=bytes([1, 2, 3, 4]), filename="photo.jpg")
+        assert uploaded.file_id == "file_1"
+
+    asyncio.run(run())
+
     assert transport.calls[0].request.url == "https://api.thankyouai.com/open/v1/files"
     assert json.loads(transport.calls[0].request.body or b"{}") == {
         "content_type": "image/jpeg",
