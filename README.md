@@ -9,13 +9,12 @@ pip install thankyouai
 ## Create a Client
 
 ```python
-from thankyou import AsyncThankYou
+from thankyou import ThankYou
 
-thankyou = AsyncThankYou(api_key="tk_...")
+thankyou = ThankYou(api_key="tk_...")
 ```
 
 The default base URL is `https://api.thankyouai.com/open/v1`.
-Use `ThankYou` instead of `AsyncThankYou` if you need the synchronous client.
 
 ## Text to Image
 
@@ -134,9 +133,9 @@ The SDK keeps generation request and response types close to the public API cont
 This keeps newly released model fields and model-specific output fields usable without waiting for an SDK release.
 
 ```python
-from thankyou import AsyncThankYou, GenerationInput, GenerationOutput, JsonObject
+from thankyou import GenerationInput, GenerationOutput, JsonObject, ThankYou
 
-client = AsyncThankYou(api_key="tk_test")
+client = ThankYou(api_key="tk_test")
 
 common_input: GenerationInput = {
     "prompt": "A mountain landscape at golden hour",

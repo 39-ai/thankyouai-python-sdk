@@ -43,11 +43,6 @@ def create_idempotency_key() -> str:
     return f"ty_{uuid.uuid4()}"
 
 
-def sleep(seconds: float) -> None:
-    if seconds > 0:
-        time.sleep(seconds)
-
-
 def check_deadline(started_at: float, timeout: float, message: str) -> None:
     if time.monotonic() - started_at > timeout:
         raise ThankYouTimeoutError(message, timeout=timeout)

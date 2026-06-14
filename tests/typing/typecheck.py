@@ -3,25 +3,15 @@ from __future__ import annotations
 from datetime import datetime
 from typing import assert_type
 
-from thankyou import AsyncThankYou, GenerationInput, GenerationOutput, JsonObject, ThankYou
+from thankyou import GenerationInput, GenerationOutput, JsonObject, ThankYou
 
 client = ThankYou(api_key="tk_test")
-async_client = AsyncThankYou(api_key="tk_test")
 
 common_input: GenerationInput = {
     "prompt": "Typed response",
     "aspect_ratio": "16:9",
     "reference_assets": [{"role": "primary", "url": "https://example.test/image.jpg"}],
 }
-
-image_response = client.generations.create(
-    model="google/nano-banana/text-to-image",
-    input=common_input,
-)
-assert_type(image_response.model, str)
-assert_type(image_response.output[0], GenerationOutput)
-assert_type(image_response.created_at, datetime)
-assert_type(image_response.params_raw, JsonObject)
 
 model_specific_input: JsonObject = {
     "prompt": "Typed quote response",
@@ -30,41 +20,29 @@ model_specific_input: JsonObject = {
     "cfg_scale": 0.7,
 }
 
-quote = client.generations.quote(
-    model="wan/v2.6/text-to-video",
-    input=model_specific_input,
-)
-assert_type(quote.expires_at, datetime)
-assert_type(quote.resolved_params, JsonObject)
 
-image_run_response = client.run(
-    model="google/nano-banana/text-to-image",
-    input={
-        "prompt": "A custom field path",
-        "output_format": "png",
-    },
-)
-assert_type(image_run_response.output[0], GenerationOutput)
-
-
-async def check_async_client() -> None:
-    async_image_response = await async_client.generations.create(
+async def check_client() -> None:
+    image_response = await client.generations.create(
         model="google/nano-banana/text-to-image",
         input=common_input,
     )
-    assert_type(async_image_response.output[0], GenerationOutput)
+    assert_type(image_response.model, str)
+    assert_type(image_response.output[0], GenerationOutput)
+    assert_type(image_response.created_at, datetime)
+    assert_type(image_response.params_raw, JsonObject)
 
-    async_quote = await async_client.generations.quote(
+    quote = await client.generations.quote(
         model="wan/v2.6/text-to-video",
         input=model_specific_input,
     )
-    assert_type(async_quote.resolved_params, JsonObject)
+    assert_type(quote.expires_at, datetime)
+    assert_type(quote.resolved_params, JsonObject)
 
-    async_run_response = await async_client.run(
+    image_run_response = await client.run(
         model="google/nano-banana/text-to-image",
         input={
-            "prompt": "Async custom field path",
+            "prompt": "A custom field path",
             "output_format": "png",
         },
     )
-    assert_type(async_run_response.output[0], GenerationOutput)
+    assert_type(image_run_response.output[0], GenerationOutput)
