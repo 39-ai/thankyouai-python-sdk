@@ -10,8 +10,7 @@ from pathlib import Path
 import pytest
 
 from thankyou import (
-    BUILT_IN_MODEL_IDS,
-    BUILT_IN_TASK_IDS,
+    GenerationInput,
     RequestOptions,
     ThankYou,
     ThankYouAuthenticationError,
@@ -79,16 +78,21 @@ GENERATION = {
 }
 
 
-def test_exports_generated_model_and_task_id_coverage() -> None:
-    assert len(BUILT_IN_MODEL_IDS) == 224
-    assert len(BUILT_IN_TASK_IDS) == 79
-    assert "google/nano-banana/text-to-image" in BUILT_IN_MODEL_IDS
-    assert "wan/v2.6/text-to-video" in BUILT_IN_MODEL_IDS
-    assert "youchuan/midjourney-v7-variation" in BUILT_IN_MODEL_IDS
-    assert not any(model_id.startswith("dummy/") for model_id in BUILT_IN_MODEL_IDS)
-    assert "audio.tts.generation" in BUILT_IN_TASK_IDS
-    assert "video.wan.text_generation" in BUILT_IN_TASK_IDS
-    assert not any(".dummy." in task_id for task_id in BUILT_IN_TASK_IDS)
+def test_common_generation_input_keeps_documented_fields_and_allows_custom_dicts() -> None:
+    common_input: GenerationInput = {
+        "prompt": "A mountain landscape",
+        "reference_assets": [{"role": "primary", "url": "https://example.test/image.jpg"}],
+        "aspect_ratio": "16:9",
+        "duration": "5",
+        "num_images": 1,
+    }
+    model_specific_input: dict[str, object] = {
+        **common_input,
+        "resolution": "1080P",
+        "camera_fixed": False,
+    }
+
+    assert model_specific_input["resolution"] == "1080P"
 
 
 def test_sends_auth_headers_workspace_id_default_headers_base_url_and_create_body() -> None:

@@ -1,55 +1,48 @@
 from __future__ import annotations
 
-from typing import Literal, NotRequired, TypeAlias, TypedDict
+from typing import NotRequired, Required, TypeAlias, TypedDict
 
 JsonPrimitive: TypeAlias = str | int | float | bool | None
 JsonValue: TypeAlias = JsonPrimitive | dict[str, "JsonValue"] | list["JsonValue"]
 JsonObject: TypeAlias = dict[str, JsonValue]
 
-AspectRatio: TypeAlias = Literal["1:1", "16:9", "9:16", "4:3", "3:4", "21:9", "9:21"]
-
 
 class ReferenceAsset(TypedDict, total=False):
+    role: Required[str]
+    asset_id: str
     url: str
-    file_id: str
-    mime_type: str
 
 
-class TextToImageInput(TypedDict, total=False):
+class GenerationInput(TypedDict, total=False):
+    """Common generation input fields.
+
+    The API accepts model-specific fields beyond these keys. For those fields,
+    pass a normal ``dict[str, JsonValue]`` or a ``JsonObject`` after checking
+    ``GET /open/v1/models/detail?model_id=...``.
+    """
+
     prompt: str
-    negative_prompt: str
-    aspect_ratio: AspectRatio
-    seed: int
-    width: int
-    height: int
-
-
-class TextToVideoInput(TypedDict, total=False):
-    prompt: str
-    negative_prompt: str
-    aspect_ratio: AspectRatio
-    duration: int | float
-    resolution: str
-    seed: int
-    enhance_prompt: bool
-
-
-class ImageToVideoInput(TextToVideoInput, total=False):
-    reference_assets: list[ReferenceAsset]
-    image_url: str
-    start_image_url: str
-    end_image_url: str
-
-
-class ImageToImageInput(TypedDict):
-    reference_assets: list[ReferenceAsset]
-    prompt: NotRequired[str]
-    strength: NotRequired[int | float]
-    seed: NotRequired[int]
-
-
-class TextToSpeechInput(TypedDict, total=False):
     text: str
-    voice: str
-    speed: int | float
-    format: Literal["mp3", "wav", "m4a", "ogg"]
+    negative_prompt: str
+    reference_assets: list[ReferenceAsset]
+    aspect_ratio: str
+    duration: str
+    num_images: int
+
+
+class WebhookConfig(TypedDict, total=False):
+    url: Required[str]
+    events: NotRequired[list[str]]
+
+
+class CreateGenerationRequest(TypedDict, total=False):
+    model: str
+    input: GenerationInput | JsonObject
+    webhook: WebhookConfig | JsonObject
+    idempotency_key: str
+    quote_id: str
+
+
+class QuoteGenerationRequest(TypedDict):
+    model: str
+    input: GenerationInput | JsonObject

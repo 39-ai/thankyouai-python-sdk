@@ -20,7 +20,7 @@ The default base URL is `https://api.thankyouai.com/open/v1`.
 
 ```python
 result = thankyou.run(
-    model="flux-2:pro/text-to-image",
+    model="flux/v2/pro/text-to-image",
     input={
         "prompt": "A mountain landscape at golden hour",
         "aspect_ratio": "16:9",
@@ -123,5 +123,44 @@ except ThankYouAPIError as error:
 
 ## Type Strategy
 
-The SDK provides generated typed input and output hints for supported models, while still allowing generic JSON for dynamic model discovery.
+The SDK keeps generation request and response types close to the public API contract:
 
+- top-level fields are `model`, `input`, `webhook`, `idempotency_key`, and `quote_id`;
+- `input` includes common hints such as `prompt`, `text`, `negative_prompt`, `reference_assets`, `aspect_ratio`, `duration`, and `num_images`;
+- generation responses use one common `GenerationOutput` item with `url`, `mime_type`, `width`, `height`, `duration`, and `fps`;
+- model-specific fields should be discovered with `thankyou.models.detail(model_id).input_schema` and passed as a normal dict.
+
+This keeps newly released model fields and model-specific output fields usable without waiting for an SDK release.
+
+```python
+from thankyou import GenerationInput, GenerationOutput, JsonObject, ThankYou
+
+client = ThankYou(api_key="tk_test")
+
+common_input: GenerationInput = {
+    "prompt": "A mountain landscape at golden hour",
+    "aspect_ratio": "16:9",
+}
+
+generation = client.generations.create(
+    model="google/nano-banana/text-to-image",
+    input=common_input,
+)
+output: GenerationOutput = generation.output[0]
+print(output.get("url"))
+
+detail = client.models.detail("wan/v2.6/text-to-video")
+print(detail.input_schema)
+
+model_specific_input: JsonObject = {
+    "prompt": "Cinematic drone shot of a mountain lake at sunrise",
+    "duration": "5",
+    "resolution": "1080P",
+    "camera_fixed": False,
+}
+
+quote = client.generations.quote(
+    model="wan/v2.6/text-to-video",
+    input=model_specific_input,
+)
+```

@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import time
+from collections.abc import Mapping
+from typing import cast
 from urllib.parse import quote
 
 from thankyou._client import APIClient, RequestConfig, RequestOptions
@@ -11,8 +13,13 @@ from thankyou._utils import (
     create_idempotency_key,
     sleep,
 )
-from thankyou.resources.generations.inputs import JsonObject
-from thankyou.resources.generations.outputs import GenericGenerationOutput
+from thankyou.resources.generations.inputs import (
+    GenerationInput,
+    JsonObject,
+    JsonValue,
+    WebhookConfig,
+)
+from thankyou.resources.generations.outputs import GenerationOutput
 from thankyou.resources.generations.responses import (
     parse_generation_list_response,
     parse_generation_response,
@@ -45,13 +52,13 @@ class GenerationsResource:
     def create(
         self,
         *,
-        model = None,
-        input=None,
-        webhook = None,
+        model: str | None = None,
+        input: GenerationInput | Mapping[str, JsonValue] | None = None,
+        webhook: WebhookConfig | Mapping[str, JsonValue] | None = None,
         quote_id: str | None = None,
         idempotency_key: str | None = None,
         request_options: RequestOptions | None = None,
-    ) -> GenerationResponse[str, GenericGenerationOutput, JsonObject]:
+    ) -> GenerationResponse[str, GenerationOutput, JsonObject]:
         """Create a generation, or execute a previously approved quote."""
         resolved_idempotency_key = idempotency_key
         if resolved_idempotency_key is None and request_options is not None:
@@ -68,7 +75,7 @@ class GenerationsResource:
                 raise TypeError("model is required when quote_id is not provided.")
             body = {
                 "model": model,
-                "input": dict(input or {}),
+                "input": _copy_json_object(input),
                 "idempotency_key": resolved_idempotency_key,
             }
             if webhook is not None:
@@ -88,15 +95,15 @@ class GenerationsResource:
         self,
         *,
         model: str | None = None,
-        input=None,
-        webhook: JsonObject | None = None,
+        input: GenerationInput | Mapping[str, JsonValue] | None = None,
+        webhook: WebhookConfig | Mapping[str, JsonValue] | None = None,
         quote_id: str | None = None,
         idempotency_key: str | None = None,
         interval: float = DEFAULT_WAIT_INTERVAL_SECONDS,
         timeout: float = DEFAULT_WAIT_TIMEOUT_SECONDS,
         terminal_statuses: set[GenerationStatus] | None = None,
         create_options: RequestOptions | None = None,
-    ) -> GenerationResponse[str, GenericGenerationOutput, JsonObject]:
+    ) -> GenerationResponse[str, GenerationOutput, JsonObject]:
         """Create a generation and wait for the final result."""
         created = self.create(
             model=model,
@@ -118,7 +125,7 @@ class GenerationsResource:
         generation_id: str,
         *,
         request_options: RequestOptions | None = None,
-    ) -> GenerationResponse[str, GenericGenerationOutput, JsonObject]:
+    ) -> GenerationResponse[str, GenerationOutput, JsonObject]:
         """Retrieve the latest generation record by ID."""
         response = self._client.request(
             RequestConfig(
@@ -153,7 +160,7 @@ class GenerationsResource:
         timeout: float = DEFAULT_WAIT_TIMEOUT_SECONDS,
         terminal_statuses: set[GenerationStatus] | None = None,
         request_options: RequestOptions | None = None,
-    ) -> GenerationResponse[str, GenericGenerationOutput, JsonObject]:
+    ) -> GenerationResponse[str, GenerationOutput, JsonObject]:
         """Poll until the generation reaches a terminal status, then return its full record."""
         statuses = terminal_statuses or DEFAULT_TERMINAL_STATUSES
         started_at = time.monotonic()
@@ -172,7 +179,7 @@ class GenerationsResource:
         self,
         *,
         model: str,
-        input,
+        input: GenerationInput | Mapping[str, JsonValue],
         request_options: RequestOptions | None = None,
     ) -> QuoteResponse[str, JsonObject]:
         """Estimate cost and blocking reasons before creating a generation."""
@@ -180,7 +187,7 @@ class GenerationsResource:
             RequestConfig(
                 method="POST",
                 path="/generate/quote",
-                body={"model": model, "input": dict(input)},
+                body={"model": model, "input": _copy_json_object(input)},
                 options=request_options,
             )
         )
@@ -195,7 +202,7 @@ class GenerationsResource:
         model: str | None = None,
         model_prefix: str | None = None,
         request_options: RequestOptions | None = None,
-    ) -> GenerationListResponse[str, GenericGenerationOutput, JsonObject]:
+    ) -> GenerationListResponse[str, GenerationOutput, JsonObject]:
         """List generations visible to the current API key, optionally filtered."""
         response = self._client.request(
             RequestConfig(
@@ -218,7 +225,7 @@ class GenerationsResource:
         generation_id: str,
         *,
         request_options: RequestOptions | None = None,
-    ) -> GenerationResponse[str, GenericGenerationOutput, JsonObject]:
+    ) -> GenerationResponse[str, GenerationOutput, JsonObject]:
         """Request cancellation for a generation and return the updated record."""
         response = self._client.request(
             RequestConfig(
@@ -234,7 +241,7 @@ class GenerationsResource:
         generation_id: str,
         *,
         request_options: RequestOptions | None = None,
-    ) -> GenerationResponse[str, GenericGenerationOutput, JsonObject]:
+    ) -> GenerationResponse[str, GenerationOutput, JsonObject]:
         """Retry a failed or retryable generation and return the new record."""
         response = self._client.request(
             RequestConfig(
@@ -264,6 +271,10 @@ def _with_idempotency_key(options: RequestOptions | None, idempotency_key: str) 
         idempotency_key=idempotency_key,
         max_retries=options.max_retries if options else None,
     )
+
+
+def _copy_json_object(value: GenerationInput | Mapping[str, JsonValue] | None) -> JsonObject:
+    return cast(JsonObject, dict(value or {}))
 
 
 __all__ = ["GenerationsResource"]

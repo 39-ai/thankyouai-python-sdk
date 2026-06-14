@@ -1,32 +1,18 @@
 from __future__ import annotations
 
-from typing import NotRequired, TypedDict
+from typing import TypedDict
 
 
-class GenericGenerationOutput(TypedDict, total=False):
+class GenerationOutput(TypedDict, total=False):
+    """Common generation output item fields.
+
+    The API may return additional model-specific fields. For those fields, read
+    the output item as a normal ``dict`` at runtime or cast it to ``JsonObject``.
+    """
+
     url: str
     mime_type: str
     width: int
     height: int
     duration: int | float
     fps: int | float
-
-
-class ImageGenerationOutput(GenericGenerationOutput, total=False):
-    pass
-
-
-class VideoGenerationOutput(GenericGenerationOutput, total=False):
-    pass
-
-
-class AudioGenerationOutput(GenericGenerationOutput, total=False):
-    pass
-
-
-class TextGenerationOutput(TypedDict, total=False):
-    text: str
-    content: str
-    url: NotRequired[str]
-    mime_type: NotRequired[str]
-

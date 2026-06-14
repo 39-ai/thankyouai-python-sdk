@@ -1,8 +1,5 @@
 from __future__ import annotations
 
-from collections.abc import Callable
-from typing import cast
-
 from thankyou._client import RequestOptions
 from thankyou._utils import DEFAULT_WAIT_INTERVAL_SECONDS, DEFAULT_WAIT_TIMEOUT_SECONDS
 from thankyou.errors import (
@@ -15,26 +12,17 @@ from thankyou.errors import (
 )
 from thankyou.resources.files import FilesResource
 from thankyou.resources.generations import GenerationsResource
-from thankyou.resources.generations.generated import BUILT_IN_MODEL_IDS, BUILT_IN_TASK_IDS
 from thankyou.resources.generations.inputs import (
-    AspectRatio,
-    ImageToImageInput,
-    ImageToVideoInput,
+    CreateGenerationRequest,
+    GenerationInput,
     JsonObject,
     JsonPrimitive,
     JsonValue,
+    QuoteGenerationRequest,
     ReferenceAsset,
-    TextToImageInput,
-    TextToSpeechInput,
-    TextToVideoInput,
+    WebhookConfig,
 )
-from thankyou.resources.generations.outputs import (
-    AudioGenerationOutput,
-    GenericGenerationOutput,
-    ImageGenerationOutput,
-    TextGenerationOutput,
-    VideoGenerationOutput,
-)
+from thankyou.resources.generations.outputs import GenerationOutput
 from thankyou.resources.models import ModelsResource
 from thankyou.resources.webhooks import WebhooksResource, compute_signature
 from thankyou.types import (
@@ -90,21 +78,17 @@ class ThankYou:
         self,
         *,
         model: str | None = None,
-        input: object | None = None,
-        webhook: JsonObject | None = None,
+        input: GenerationInput | dict[str, JsonValue] | None = None,
+        webhook: WebhookConfig | JsonObject | None = None,
         quote_id: str | None = None,
         idempotency_key: str | None = None,
         interval: float = DEFAULT_WAIT_INTERVAL_SECONDS,
         timeout: float = DEFAULT_WAIT_TIMEOUT_SECONDS,
         terminal_statuses: set[GenerationStatus] | None = None,
         create_options: RequestOptions | None = None,
-    ) -> GenerationResponse[str, GenericGenerationOutput, JsonObject]:
+    ) -> GenerationResponse[str, GenerationOutput, JsonObject]:
         """Shortcut for `thankyou.generations.run(...)`."""
-        run = cast(
-            Callable[..., GenerationResponse[str, GenericGenerationOutput, JsonObject]],
-            self.generations.run,
-        )
-        return run(
+        return self.generations.run(
             model=model,
             input=input,
             webhook=webhook,
@@ -118,21 +102,16 @@ class ThankYou:
 
 
 __all__ = [
-    "AspectRatio",
-    "AudioGenerationOutput",
-    "BUILT_IN_MODEL_IDS",
-    "BUILT_IN_TASK_IDS",
+    "CreateGenerationRequest",
     "GenerationErrorBody",
     "GenerationErrorDetails",
     "GenerationFieldError",
+    "GenerationInput",
     "GenerationListResponse",
     "GenerationResponse",
     "GenerationStatus",
     "GenerationStatusResponse",
-    "GenericGenerationOutput",
-    "ImageGenerationOutput",
-    "ImageToImageInput",
-    "ImageToVideoInput",
+    "GenerationOutput",
     "JsonPrimitive",
     "JsonObject",
     "JsonValue",
@@ -141,13 +120,10 @@ __all__ = [
     "ModelPricing",
     "ModelPricingOption",
     "ModelSummary",
+    "QuoteGenerationRequest",
     "QuoteResponse",
     "ReferenceAsset",
     "RequestOptions",
-    "TextGenerationOutput",
-    "TextToImageInput",
-    "TextToSpeechInput",
-    "TextToVideoInput",
     "ThankYou",
     "ThankYouAPIError",
     "ThankYouAuthenticationError",
@@ -158,6 +134,6 @@ __all__ = [
     "ThankYouWebhookVerificationError",
     "UploadSessionResponse",
     "UsageResponse",
-    "VideoGenerationOutput",
+    "WebhookConfig",
     "compute_signature",
 ]
