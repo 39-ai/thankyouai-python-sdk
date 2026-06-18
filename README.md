@@ -2,6 +2,8 @@
 
 Official Python SDK for the ThankYou unified creative generation API.
 
+Published on PyPI as [`thankyouai`](https://pypi.org/project/thankyouai/) (version 0.1.0).
+
 ```bash
 pip install thankyouai
 ```
