@@ -3,11 +3,11 @@ from __future__ import annotations
 import asyncio
 import json
 import time
-from collections.abc import Awaitable, Callable
+from collections.abc import Callable, Coroutine
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
-from typing import TypeVar
+from typing import Any, TypeVar, cast
 
 import pytest
 
@@ -56,8 +56,8 @@ class MockTransport:
 AsyncMockTransport = MockTransport
 
 
-def run(awaitable: Awaitable[T]) -> T:
-    return asyncio.run(awaitable)
+def run(coroutine: Coroutine[Any, Any, T]) -> T:
+    return asyncio.run(coroutine)
 
 
 def json_response(
@@ -311,7 +311,7 @@ def test_top_level_run_rejects_unknown_keyword_arguments() -> None:
     thankyou = ThankYou(api_key="tk_test", transport=MockTransport([]))
 
     with pytest.raises(TypeError, match="unexpected keyword argument"):
-        thankyou.run(  # type: ignore[call-arg]  # pyright: ignore[reportCallIssue]
+        cast(Any, thankyou.run)(
             model="flux/v2/pro/text-to-image",
             input={},
             unexpected=True,
