@@ -4,8 +4,22 @@ Official Python SDK for the ThankYou unified creative generation API.
 
 Published on PyPI as [`thankyouai`](https://pypi.org/project/thankyouai/) (version 0.1.0).
 
+Install directly:
+
 ```bash
 pip install thankyouai
+```
+
+Or add it to `requirements.txt`:
+
+```txt
+thankyouai>=0.1.0,<0.2.0
+```
+
+With PDM:
+
+```bash
+pdm add "thankyouai>=0.1.0,<0.2.0"
 ```
 
 ## Create a Client
